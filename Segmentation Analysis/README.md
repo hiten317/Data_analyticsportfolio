@@ -18,3 +18,10 @@
 - **Segment 3:** Quick intense.
 - **Segment 4:** Adventure Cruise.
 - **Segment 5:** Relaxed ride
+
+## Additional Analysis
+- **coaster_ratings.csv** - This dataset has survey responses from Lobster land visitors regarding there preferences for new rides in the park
+- **Conjoint Analysis** was performed to make comparisons among different features and the analysis was based on Linear Regression model as the data was dummified and then fit into the regression model.
+- **Average_rating** - This was the rating assigned for each variable by the responders and is the outcome variable of the model.
+- **Key insights**: Most of the responders preferred catapult in their coaster rides for instant speed but didn't want to experience maximum speed available on the rides and rather opted for a mid-range, same goes for the highest vertical drop height which indicates that the responders preferred some thrill on the coaster rides but didn't fall on the extreme side.
+  

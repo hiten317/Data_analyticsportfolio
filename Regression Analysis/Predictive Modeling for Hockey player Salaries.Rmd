@@ -1,0 +1,484 @@
+---
+title: "AD 699 Assignment 2"
+author: "Hiten Ladkani"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+    theme: default
+  pdf_document: default
+  word_document: default
+  
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("C:/Users/Shravani/Documents/Rscripts")
+getwd()
+```
+
+## Tasks:  Simple Linear Regression
+<div style="color:blue">
+1 & 2. Bring player_dataset.csv into your R environment.
+--Use either the str() function or the glimpse() function from dplyr to learn more about
+this dataset.
+ a.After taking a look at the dataset description and seeing the results here, which
+ variables in the dataset should be seen as numeric, and which should be seen as
+ categorical?
+ b. Among the numeric variables, which ones are continuous, and which ones are
+discrete?
+</div> 
+
+```{r}
+nhl_df <- read.csv("nhl_players.csv", sep = ",", header = TRUE)
+head(nhl_df)
+```
+#b. Call the str() function on your dataset, and show the results.
+#c. What does the str() function accomplish? How many rows and how many columns does your dataframe contain?
+
+```{r}
+str(vancouver_df)
+```
+
+**Answer: The str() function is a structure function applied to a R object, in this data frame "vancouver.df". It gives a quick summary of the dataset, no. of observations and columns (variables) as well as datatypes of each column and few initial values for the columns. Great function to understand the composition of the dataset being used.** 
+
+#d. How many unique Local.area values does your dataframe contain?
+
+```{r}
+length(unique(vancouver_df$Local.area))
+```
+<div style="color:blue">
+3. Filter your dataset, so that it only contains records with your assigned local area.
+ a. How many records does your dataframe contain now? 
+</div>
+
+```{r}
+library(dplyr)
+library(tidyverse)
+grnd_woodland <- vancouver_df %>%
+                 filter(Local.area == "Grandview-Woodland")
+str(grnd_woodland)
+```
+** Local area assigned to me is Grandview-Woodland. After filtering to the assigned local area, the observations have reduced
+to 40,050 records from over 8M records originally in the dataset.**
+
+
+<div style="color:blue">
+4.  Dates: 
+ a. Which columns in the dataset contain date-related information?
+ b. How does R currently see those columns?
+</div>
+** Answer: a. Columns - "Service.request.open.timestamp", "Service.request.close.date" and "Last.modified.timestamp" contain
+date-related information, 
+b. All the 3 columns are of character datatype currently. 
+
+```{r}
+typeof(grnd_woodland$Service.request.open.timestamp)
+typeof(grnd_woodland$Service.request.close.date)
+typeof(grnd_woodland$Last.modified.timestamp)
+```
+<div style="color:blue">
+c. If they are not yet seen as dates, convert them into dates, and show your results to prove that conversion was successful?
+</div>
+
+```{r}
+grnd_woodland <- grnd_woodland %>%
+                  mutate(across(c(Service.request.open.timestamp, Service.request.close.date,                            
+                  Last.modified.timestamp),as.Date))
+class(c(grnd_woodland$Service.request.open.timestamp, grnd_woodland$Service.request.close.date, 
+        grnd_woodland$Last.modified.timestamp))
+```
+<div style="color:blue">
+d. Next, create a new variable called duration. This variable should capture the amount of time (measured in days)
+that it takes the city of Vancouver to close a city service request. 
+</div>
+
+```{r}
+grnd_woodland <- grnd_woodland %>% 
+                 mutate(Duration = Service.request.close.date - Service.request.open.timestamp)
+grnd_woodland
+```
+<div style="color:blue">
+5. Checking for NA values.
+ a. How many total NA values does your dataset contain?
+ </div>
+ 
+```{r}
+sum(is.na(grnd_woodland))
+```
+# b. Generate a table or chart that shows missingness by column. Which columns contain NA values? 
+```{r}
+missing_values_df <- data.frame(column = names(grnd_woodland), missing_values = colSums(is.na(grnd_woodland))) %>%
+                     filter(missing_values > 0)
+missing_values_df                
+```
+** 4 columns from the data set contain NA values, "Service.request.close.date", "Latitude", "Longitude", & "Duration". 
+
+<div style="color:blue">
+c. For the columns that contain missing values, offer some reasoning as to why the values might be missing. Does missingness
+in some variables seem to be connected to missingness in other columns? Why is this the case? 
+ </div>
+
+** Answer: "Service.request.close.date" column has NA values because there might be a lot of requests that have been 
+recently registered. Let's say from January 2025 or Q4 2024 that have not been addressed completely yet and are open. One of the other reasons could be no closure reason noted and the request was randomly closed so the closure date was not registered. 
+"Duration" was the variable that was calculated from Service open and close dates by subtracting latter from the former date, so since closure dates are missing so duration is also missing. Latitude and Longitude are parameters for the location of the request and if one parameter is missing, the other will also be missed because both usually get recorded simulatenously.**
+
+# 6 a.What is your birthday? 
+** Answer: August (08) and date is 06
+
+# b. Throughout the dataset, how many city service requests occurred on your birthday? 
+
+```{r}
+library(lubridate)
+spec_requests <- grnd_woodland %>%  
+                 filter(month(Service.request.open.timestamp) == 8 & 
+                 day(Service.request.open.timestamp) == 6)
+nrow(spec_requests)
+```
+<div style="color:blue">
+c. Of the service requests on your birthday, what was the most common channel, or method of reporting?
+</div>
+
+```{r}
+channel_count <- spec_requests %>%
+                 group_by(Channel) %>%
+                 summarise(count = n()) %>%
+                 arrange(desc(count))
+channel_count
+```
+<div style="color:blue">
+d. Of the service requests on your birthday, what was the most common service
+request type?
+</div>
+
+```{r}
+common_ser_type <- spec_requests %>%
+                  group_by(Service.request.type) %>%
+                  summarise(count = n()) %>%
+                  arrange(desc(count))
+common_ser_type
+```
+<div style="color:blue">
+7.  Exploring the dataset 
+  a. For each of the years in your data, how many total city service requests
+  were opened? Is there an overall trend, or anything else noteworthy for an 
+  analyst to mention here? 
+</div>
+
+```{r}
+req_by_year <- grnd_woodland %>%
+               group_by(Service_req_year = 
+               year(Service.request.open.timestamp)) %>%
+               summarise(count = n()) %>%
+               arrange(desc(count))
+req_by_year
+library(ggplot2)
+ggplot(req_by_year) +
+  geom_bar(aes(x = reorder(Service_req_year, -count), y = count),
+           stat = "identity", fill = "blue", color = "black" ) +
+  xlab("Service requests by year") +
+  ylab("Count of service requests") +
+  theme_minimal()
+```
+
+
+** Answer: If we look at the aggregated dataframe "req_by_year", 2024 has 
+13,259 requests followed closely by 2022 in which 12,907 requests were received and almost similar number in 2023. If we visualize this data, we can see that 
+request numbers are almost consistent in the last 3 years, however since it is 
+just start of 2025, the request numbers sit only at 1,021 only.**
+
+<div style="color:blue">
+b. Determine the average duration by channel. How do the various channels
+compare? When viewing these results, what should an analyst keep in mind before
+concluding anything about whether some channels might lead to faster results?
+</div>
+
+```{r}
+channel_data <- grnd_woodland %>%
+                group_by(Channel) %>%
+                summarise(mean_duration = round(mean(Duration, 
+                          na.rm = TRUE)))%>%
+                arrange((mean_duration))
+channel_data
+
+channel_data1 <- grnd_woodland %>% 
+                 group_by(Channel) %>%
+                 summarise(count = sum(!is.na(Duration))) %>%
+                 arrange((count))
+channel_data1                                       
+```
+
+
+**To analyze how relevant and true the data of average duration of each channel
+is, it is essential to find out how many records of data do we have for each 
+channel to make these kind of inferences. In the above code, "channel_data" represents dataframe for average duration by channel and "channel_data1" provides records by each channel for the service requests. As per duration data, Mail is the fastest channel to get your requests addressed but the dataset only has 5 records for Mail channel which isn't enough to conclude this. On the other hand E-mail, Social media and Chat seem to take the longest relatively, however even these channels only have just over 100 records of data, while the rest have over 10,000 records. So in reality one might say e-mailing your request or speaking to a representation on chat might be the fastest way to get your request addressed, but the data says otherwise here but there isn't substantial amount of records to conclude that.**
+
+<div style="color:blue">
+c. Is  opening a ticket in some months better or worse than doing it in other months? Generate a table that shows the total number of "Open" status values by 
+month for your data (note: this table should just have 12 rows since you are grouping the data by just month). What stands out here as interesting or noteworthy?
+</div>
+
+```{r}
+tickets_data <- grnd_woodland %>%
+                filter(Status == "Open") %>%
+                group_by(Service_req_month =
+                           month(Service.request.open.timestamp)) %>%
+                summarise(Service_count = n())
+              
+tickets_data  
+
+service_reqs <- grnd_woodland %>% 
+                filter(Status == "Open") %>%
+                group_by(Service.request.type) %>%
+                summarise(count = n()) %>%
+                arrange(desc(count))
+service_reqs
+```
+
+
+**Looking at the data and the "tickets_data" data frame, January seems to the worst month to opening a ticket, possibly because people are just returning from holidays
+so the service pace has not yet picked up. However, if we see the winter and spring months are few of the best months for opening a ticket, because open tickets are comparatively less than Summer or fall. If we just look at the service request type that is registered the most is city and park trees maintenance, missed green bin pickup which are more likely to be registered in summer and spring months when the population is out and about. Also, to build more context around the summer and fall months, Vancouver experiences frequent pacific storms which might lead to registration of many such tickets.**
+
+<div style="color:blue">
+8.  Renaming a variable
+ a. Rename any variable in the dataset, using any function or process in R to do so.
+ b. In a sentence, which column did you rename, and why?
+</div>
+
+```{r}
+grnd_woodland <- grnd_woodland %>%
+                 rename(Service.request.open.date = Service.request.open.timestamp) %>%
+                 rename(Latest.modification.date  = Last.modified.timestamp)
+head(grnd_woodland)
+```
+
+**Renamed two variables: First, "Service.request.Open.timestamp" was changed to "Service.request.open.date" as we remove the time element from the variable, second "Last.modified.date" was renamed to "Latest.modification.date" so that it is easier to understand what the variable means.**
+
+<div style="color:blue">
+9. Removing a variable
+ a. Remove the "Address" column from your dataset, using any function or process in R to so. 
+</div>
+
+```{r}
+grnd_woodland <- grnd_woodland %>%
+                 select(-Address)
+names(grnd_woodland)
+```
+<div style="color:blue">
+10. Using ggplot, construct a barplot showing a count of city service complaints by day of week, You can order the bars either by their occurrence within a week (e.g. Monday, Tuesday, Wednesday, etc.) or by height (tallest to shortest, or reverse).
+ a. In a couple of sentences, describe your plot. How would you explain it to someone who was previously unfamiliar with this dataset? 
+</div>
+
+```{r}
+barplot_data <- grnd_woodland %>%
+                mutate(Day_of_week = wday(Service.request.open.date, 
+                label = TRUE)) %>%
+                group_by(Day_of_week) %>%
+                summarise(requests_count = n())
+barplot_data
+ggplot(barplot_data, aes(x = Day_of_week, y = requests_count)) +
+geom_bar(stat = "identity", fill = "black", color = "blue") +
+xlab("Day of the week") +
+ylab("Service requests count") +
+ggtitle("City Service complaints by day of the week") +
+theme(plot.title = element_text(hjust = 0.5)) +
+theme_minimal()
+  
+```
+
+
+**The plot of service requests by day of the week is normally distributed across the week, the requests are lowest on weekends (Saturday & Sunday) and peak on Wednesday, as observed in normal distribution the numbers on either side of the plots are similar (i.e. Mon-Tue & Thur-Friday). So the departments are lot busier by the mid-week.**
+
+<div style="color:blue">
+11. Perform another filtering step. This time, filter your dataset so that only rows with the seven most common service request types remain. 
+ a. How many rows does your dataframe contain now?
+</div>
+
+```{r}
+top_7_servc_types <- grnd_woodland %>% 
+                     count(Service.request.type, sort = TRUE) %>%
+                     slice_max(n, n = 7) %>%
+                     pull(Service.request.type)
+common_servc_types <- grnd_woodland %>% 
+                      filter(Service.request.type %in% top_7_servc_types) %>%
+                      select(Service.request.type, everything())
+```
+
+
+**Please consider "common_servc_types" as the final filtered dataframe. The dataframe contains 14,143 rows.**
+
+<div style="color:blue">
+12. Using ggplot, create another barplot that shows a count of city service complaints by day of the week. This time, though, fill your bars with the 'Department' variable. 
+You should now see a count variable on y-axis, and your bars should be colored based on the number of complaints associated with each department.
+</div>
+
+```{r}
+barplot_dept_data <- common_servc_types %>% 
+                     mutate(Day_of_week = wday(Service.request.open.date, 
+                                               label = TRUE)) %>% 
+                     group_by(Day_of_week, Department) %>%
+                     summarise(service_count = n())
+ggplot(barplot_dept_data, aes(x = Day_of_week, y = service_count,
+                              fill = Department)) + 
+  geom_bar(stat = "identity", color = "black") +
+  xlab("Days of the week") +
+  ylab("Number of service complaints") +
+  ggtitle("Number of service complaints by Department") +
+  theme(plot.title = element_text(hjust = 0.5)) + 
+  theme_minimal()
+```
+
+
+**If we first look at comparing complaint numbers by department, sanitation services have the most complaints which is somewhat obvious considering a lot of daily activities like garbage pickup, public place maintenance request come under it. However, if we look at the pattern, almost every department has identical pattern, highest number of complaints registered in mid-week and then gradually decreasing as weekend approaches. We can assume that a lot of these issues happen over the weekend but people happen to register them only after they are back in their weekly routine and that is why we observe a gradual increase and decrease on either side of the mid-week.** 
+
+<div style="color:blue">
+13. Now let's use a different type of time-based analysis. Create a barplot that shows the months of the year on the x-axis. Your y-axis should show the total number of 311 complaints, and you should use 'Service.request.type' as your 'fill' variable.
+ a. What do you see here? What can you say about this? Point out any noteworthy patterns or changes that are evident based on time of year. What could explain these differences? </div>
+ 
+```{r}
+barplot_monthly_data <- common_servc_types %>%
+                        mutate(Service_month = month(Service.request.open.date,
+                                                     label = TRUE)) %>%
+                        group_by(Service_month, Service.request.type) %>%
+                        summarise(complnt_count = n())
+ggplot(barplot_monthly_data, aes(x = Service_month, y = complnt_count,
+                                 fill = Service.request.type)) +
+       geom_bar(stat ="identity", color = "black") +
+       xlab("Months") +
+       ylab("Total Number of complaints") +
+      ggtitle("311 service complaints by Month and request type") +
+      theme(plot.title = element_text(hjust = 0.5)) +
+      theme_minimal()
+         
+                     
+```
+
+
+**Answer: From the plot, it is evident that throughout the year, Building and Development case and missed green bin pickup are the two prominent complaints. If we closely look at the summer & fall months (May to Sep), number of service complaints either increase or remain consistent which is expected as more people are out of their homes and the higher the number of people, more are number of complaints registered. Garbage collection services in the neighborhood seem to be unsatisfactory or below required standards as those complaints are consistent in number and even experience a sudden spike in a particular month**
+
+<div style="color:blue">
+14. Again using ggplot, make a histogram that shows the duration of the city requests.
+Use any colors of your choice for filling in the bars, and for drawing the borders of the bins. Determine the number of bins that you wish to use, and come up with some way of handling outliers. 
+ a. What do you see? In a couple of sentences, what can you say about this graph - what does it show you? 
+ b. Why did you approach the outliers this way? 
+</div>
+
+```{r}
+lower_bound <- quantile(grnd_woodland$Duration, 0.05, na.rm = TRUE)
+upper_bound <- quantile(grnd_woodland$Duration, 0.95, na.rm = TRUE)
+
+filtered_data <- common_servc_types %>%
+                 filter(!is.na(Duration) & Duration > 0) %>%
+                 mutate(Duration = as.numeric(Duration)) %>%
+                 mutate(Duration = ifelse(Duration < lower_bound, lower_bound, 
+                                          ifelse(Duration > upper_bound, 
+                                                 upper_bound, Duration)))
+
+histogram1 <- ggplot(filtered_data, aes(x = Duration)) +
+  geom_histogram(binwidth = 5, bins = 10, fill = "blue", color = "black") +
+  xlab("Duration in days") +
+  ylab("Number of Service requests") + 
+  ggtitle("Distribution of duration of all service requests types") +
+  geom_vline(xintercept = mean(filtered_data$Duration, na.rm = TRUE), 
+             linetype = "dotted", color = "red") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+histogram1
+```
+
+
+**Answer:Top points will be that there are still requests that are resolved on the same day, hence there are ~4,200 requests that fall in the 1st bin. The histogram is right skewed which means that there were many requests that have taken more than 100 days and there is high possibility that these requests are anomalies and have not been resolved yet. For eg I came across a record for one request from Feb 2024 which has not received a closure date till latest day in the dataset. Positive thing to note is that maximum requests are being resolved between 1 to 10 days. 
+Outliers have been handled by replacing them with 5th percentile value for lower values and most importantly extremely high values have been replaced with 95th percentile value of 32 days. The reason Winsorization method was used rather than completely removing the outliers is because it is possible that some of the service requests might take more than 300 days to be resolved so it is important to sustain that kind of information.**
+
+<div style="color:blue">
+15. Now let's make this a bit more interesting. Again, use a histogram to depict the distribution of 'duration' values, but this time, facet the plot on the service request type variable. Again, use any colors of your choice for the fill and the borders and again, be sure to do something to address the outliers. 
+ a. Describe this histogram. What does it show? Talk about some of the differences you   notice as you compare the distributions of the various request types. What stands out   as interesting or noteworthy? What might explain it? 
+</div>
+
+```{r}
+
+facet_plot_data <- common_servc_types %>%
+                 filter(!is.na(Duration) & Duration > 0) %>%
+                group_by(Service.request.type) %>%
+                 mutate(Duration = as.numeric(Duration)) %>%
+                 mutate(lower_bound1 <- quantile(Duration, 0.05, na.rm = TRUE),
+                        upper_bound1 <- quantile(Duration, 0.95, na.rm = TRUE),
+                   Duration = ifelse(Duration < lower_bound, lower_bound, 
+                                          ifelse(Duration > upper_bound, 
+                                                 upper_bound, Duration))) %>%
+                 ungroup()
+                
+ggplot(facet_plot_data, aes(x = Duration)) +
+  geom_histogram(binwidth = 5, bins = 10, fill = "blue", color = "black") +
+  facet_wrap(~ Service.request.type) +
+  xlab("Duration in days") +
+  ylab("Number of Service requests") + 
+  ggtitle("Distribution of duration of all service requests types") +
+  geom_vline(xintercept = mean(facet_plot_data$Duration, na.rm = TRUE), 
+             linetype = "dotted", color = "red") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+```
+
+
+**Answer: Again the outliers in the subplots have been handled by Winsorization as we would still want to keep some anomalies that are bound to happen somewhere around 30-40 days might be taken for a request like Business license where verification and approval steps are involved but we have put a replacement to extreme values like 400-800 days because that is likely due to request not been addressed at all or incorrect information recorded. Now, if we look at garbage bin pickup or green bin pickup or even abandoned non-recyclables complaints, the common pattern observed is that most requests have been addressed 10 days or to max of 15 days and there are very few cases which have gone beyond 30 days. We can attribute this to the scale of the problem, the administration knows it is an issue that can be addressed quickly and most cases are handled, whereas if we Infrastructure inquiry cases or Business License request cases they do have substantial requests which take a while (more than 30 days), that can likely be due to paperwork not complete, errors or lack of communication from either side.**
+
+<div style="color:blue">
+16. Next, let’s try a proportional fill barplot. Generate a barplot with ggplot, using Channel as your x variable, and using Service.Request.Type as your fill variable. Be sure to pass position=’fill’ inside your geom_bar() layer to ensure that you get bars of equal heights.
+ a. What is interesting or noteworthy here? In a few sentences, write about your
+ plot. What is it showing? Which categories are unique, and how does the graph
+ show you this? Again, speculate a bit as to why it might look the way it does.
+ Domain knowledge of Vancouver is not needed here, but a bit of creativity and
+ original thought will go a long way.
+</div>
+
+```{r}
+ggplot(common_servc_types, aes(x = Channel, fill = Service.request.type)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent_format()) +
+  xlab("Channel") +
+  ylab("Proportion of Service requests") +
+  ggtitle("Distribution of service requests by channel") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  theme_minimal()
+```
+
+
+**Answer: The plot shown above is a proportional bar plot for distribution of service requests by the Channel they were registered through. The y-axis shows the percentage of requests that were reported through each channel. In terms of unique categories, Abandoned Non-recyclables, city and park trees maintenance and missed green bin pickup cases are the only 3 categories that are reported in some proportion through all channels. This is not unusual as people tag the government and public union social handles on social media to report certain cases. Website seems to be the most appropriate channel for reporting, closely followed by chat for reporting all types of complaints. The reason is obvious, website is constantly monitored and organizations have agents sitting to handle requests on the other side.**
+
+<div style="color:blue">
+17. Using the leaflet package, generate a map of your local Vancouver area. 
+</div>
+
+```{r}
+library(leaflet)
+map_data_df <- common_servc_types %>%
+               select(Local.area, Latitude, Longitude) %>%
+               filter(!is.na(Latitude) & !is.na(Longitude))
+
+leaflet(data = map_data_df) %>%
+  addTiles() %>%
+  setView(lat = median(map_data_df$Latitude), lng = mean(map_data_df$Longitude), 
+          zoom = 12)
+  
+```
+
+<div style="color:blue">
+18. Next, generate another map of your local area (also with leaflet) but this time, use a different map provider option (not the default).
+</div>
+
+```{r}
+leaflet(data = map_data_df) %>%
+  addProviderTiles(providers$Stadia.StamenToner) %>%
+  setView(lat = median(map_data_df$Latitude), lng = mean(map_data_df$Longitude), 
+          zoom = 12)
+```
+**Not sure what the problem is but generating map freezes Rstudio for me, I have reduced the data to 5000 rows, removing NA values in Latitude and Longitude.**
+
+<div style="color:blue">
+19. My assignment submission includes the following: 
+   a. a file containing code (.RMD)
+   b. a write-up in PDF that clearly includes all of my code, results and 
+      interpretation statements, together in a single document. 
+</div>

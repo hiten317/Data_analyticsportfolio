@@ -1,0 +1,482 @@
+---
+title: "AD 699 Assignment 2"
+author: "Hiten Ladkani"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Simple Linear Regression
+
+<div style="color:blue">
+1. Bring player_dataset.csv into your R environment.
+2. Use either the str() function or the glimpse() function from dplyr to learn more about
+this dataset.
+a. After taking a look at the dataset description and seeing the results here, which
+variables in the dataset should be seen as numeric, and which should be seen as
+categorical?
+b. Among the numeric variables, which ones are continuous, and which ones are
+discrete?
+</div>
+```{r cars}
+nhl_df <- read.csv("nhl_players.csv")
+head(nhl_df)
+```
+```{r}
+str(nhl_df)
+```
+**Answer: a. Categorical variables - "name", "Team_y", "Position_y", "HANDED"
+Numeric variables - "GP", "G", "A", "Sh", "Sh_perc", "SALARY", "PIM", "Giveaways",
+"Takeaways", "Hits", "Hits.Taken", "blocked_shots" and "plusMinus".**
+
+**Answer: b. Continuous numeric variables - "sh_perc"
+Discrete numeric variables - "GP", "G", "A", "P", "Sh", "SALARY","PIM",
+"Giveaways","Takeaways", "Hits", "Hits.Taken", "blocked_shots" and 
+"plusMinus".**
+
+<div style="color:blue">
+3. Check for NAs. Are there any NA values in this dataset? How do you know this?
+Remove all rows that contain any NA values now.
+</div>
+
+```{r}
+sum(is.na(nhl_df))
+```
+**Answer: There are no NA values in the dataset so we need not remove any rows.**
+
+<div style="color:blue">
+4. Variable name clean-up. We’ve got some variable names that are a bit annoying here,
+thanks to some extra characters. Clean up any variable names that would be better
+without the extra characters.
+</div>
+
+```{r}
+library(tidyverse)
+library(dplyr)
+nhl_df <- nhl_df %>%
+          rename(Team = Team_y, Position = Position_y, Handed = HANDED, 
+                 Goals = G, Assists = A, Gamesplayed = GP, Shots = Sh, 
+                 Salary = SALARY, HitsTaken = Hits.Taken, blockedshots = 
+                 blocked_shots)
+```
+**Cleaned up a few other variables to ensure consistency in the naming taxonomy,
+so it is easier to execute column wise functions**
+
+<div style="color:blue">
+5. Check for duplicates. Are there any duplicate player names here? 
+If so, remove one of the rows associated with this duplication. How many total 
+rows of data remain now?
+</div>
+
+```{r}
+table(nhl_df$name)[table(nhl_df$name) > 1]
+
+```
+```{r}
+nhl_df <- nhl_df %>%
+          distinct(name, .keep_all = TRUE)
+table(nhl_df$name)[table(nhl_df$name) > 1]
+```
+**Answer: The "nhl_df" dataframe was reduced to 561 records from 568 records after
+removing duplicate records of few players.**
+
+<div style="color:blue">
+6. Handling the “Salary” variable. Currently, the Salary variable contains $ symbols in
+each cell, as well as commas. Clean this variable up so that the commas and $ symbols
+are gone.
+</div>
+
+```{r}
+nhl_df$Salary <- as.numeric(gsub("[$,]", "", nhl_df$Salary))
+str(nhl_df$Salary)
+```
+<div style="color:blue">
+Using a seed value based on either your street address or a lucky number of your
+choice, create a data partition. Assign approximately 60% of the records to your
+training set, and the other 40% to your validation set. (For instance, someone 
+who lives at 201 Canal St would use 201 as a seed value, but a person living at 
+880 Washington Street would use 880. If your lucky number is 88, use it as your 
+seed value – if your lucky number is 1234, use that instead).Keep in mind that 
+a seed value has no relationship to the data itself -- it’s just an arbitrary 
+number. You can use any method that results in 60% of rows going to training, 
+and 40% to validation, with no overlapping rows, no rows thrown away, and random selection.
+</div>
+
+```{r}
+set.seed(317)
+train_index <- sample(1:nrow(nhl_df), size = 0.60 * nrow(nhl_df))
+#split data into 60% training and 40% validation set
+train_data <- nhl_df[train_index, ]
+validation_data <- nhl_df[-train_index, ]
+```
+
+<div style="color:blue">
+a. Why is it important to partition the data before doing any sort of in-depth
+analysis of the variables? [note: this question is *not* asking why we do a data
+partition, but is instead asking why we do the partition prior to analyzing the
+full dataset]
+</div>
+
+**Answer: If we perform predictive analysis before partitioning the data, we 
+introduce an "optimism" bias. This is because when we choose the model that works
+best with the entire dataset, the bias can come from two sources: 1. the model 
+itself is superior in predictive analysis. 2. There is a chance that the data 
+perfectly matches with the chosen model better than other models. In the latter
+case, the problem of overfitting comes into picture and we would realise that the 
+model has poor performance to new data (test data) on which it is tested.**
+
+<div style="color:blue">
+8. Let’s imagine that we wish to know more about the relationship between a
+player’s total points and his salary.
+Using ggplot, create a scatterplot that depicts Salary on the y-axis and 
+Points on the x-axis. Add a best-fit line to this scatterplot. Use only your 
+training set data to build this plot. Be sure that your graph axes do not show 
+numbers in scientific notation.
+What does this plot suggest about the relationship between these variables? 
+Does this make intuitive sense to you? Why or why not?
+</div>
+
+```{r}
+library(ggplot2)
+library(scales)
+ggplot(train_data, aes(x = P, y = Salary))+
+  geom_point(color = "blue")+
+  geom_smooth(method = "lm", color = "red", se = FALSE)+
+  xlab("Players Points")+
+  ylab("Players Salary")+
+  ggtitle("Relationship between players points and salary")+
+  scale_x_continuous(labels = comma)+
+  scale_y_continuous(labels = comma)+
+  theme(plot.title = element_text(hjust = 0.5))+
+  theme_minimal();
+```
+**Answer: The relationship is positive linear one between points and salaries of 
+players. It aligns with the sports reality as well, the more the points scored 
+by a player, the more valuable they are and hence they receive a better salary 
+than other players. Another expected pattern is that as we go higher up in points,
+the number of players decrease which you can see in most sports and hence they 
+command higher salaries. There are few outliers too which we can assume might be 
+legends or consistent performers season over season who have extremely high 
+salaries.**
+
+<div style="color:blue">
+9.  Now, again using training set data only, find the correlation between Salary 
+and Points. Then, use cor.test() to see whether this correlation is significant.
+What is this correlation? Is it a strong one? Is the correlation significant?
+</div>
+
+```{r}
+significance <- cor.test(train_data$Salary, train_data$P)
+significance
+```
+**Answer: The correlation between players salary and points is almost 0.69 which
+is strong positive relationship because the r value is closer to 1. The correlation
+is also statistically significant from the results as it rejects the null 
+hypothesis with a strong t-statistic and a p-value of well below 5% suggesting its
+strong significance.**
+
+<div style="color:blue">
+10. Using your training set, create a simple linear regression model, with 
+Salary as your outcome variable and Points as your input variable. Use the 
+summary() function to display the results of your model.
+</div>
+
+```{r}
+linear_model <- lm(train_data$Salary ~ train_data$P)
+summary(linear_model)
+```
+<div style="color:blue">
+11. What are the minimum (most negative) and maximum (most positive) residual values
+in this model?
+ a. Find the observation whose rating generated the highest residual value in
+ your model. What was that player’s actual salary? What did the model predict 
+ that it would be? How is the residual calculated from the two numbers that you 
+ just found?
+```{r}
+residuals <- residuals(linear_model)
+max_residual_index <- which.max(abs(residuals))
+predicted_salary <- predict(linear_model)[max_residual_index]
+actual_salary <- train_data$Salary[max_residual_index]
+#Manually calculating residual value from predicted & actual
+analytical_residual = actual_salary - predicted_salary
+analytical_residual
+```
+**Answer: The minimum residual value is $4,647,164 and maximum value is 
+$8,637,472. (a) - The 105th observation generated the highest residual value and
+the actual salary of that player was $15,900,000 and the model predicted the 
+player's salary to be $7,262,528. The residual was calculated by subtracting
+predicted salary from the actual salary in the data.**
+
+<div style="color:blue">
+b. Find the observation whose rating generated the lowest (i.e. most negative)
+residual value. What was that player’s actual salary? What did the model
+predict that it would be? How is the residual calculated from the two numbers
+that you just found?
+</div>
+```{r}
+min_residual_index <- which.min((residuals))
+predicted_salary_low <- predict(linear_model)[min_residual_index]
+actual_salary_low <- train_data$Salary[min_residual_index]
+#Manually calculating residual value from predicted & actual
+min_residual <- actual_salary_low - predicted_salary_low
+min_residual
+```
+**Answer: The 72nd observation generated the minimum residual and the actual 
+salary for the player was 1,400,000 and the predicted salary was 6,047,164. The
+residual was manually calculated subtracting these values.**
+
+<div style="color:blue">
+c.It looks like there are some cases where this model is quite a bit 
+“off the mark.” Write a few sentences with your thoughts about why Points 
+might be an okay starting point, but may not perfectly predict Salary (and do 
+not just be general and say that ‘other things might matter’ – be more specific 
+than that). [Note:this answer does NOT require any specific knowledge of hockey, 
+beyond knowing that points are good, but that other things matter, too. 
+As always, you may use any source].
+</div>
+
+**Answer: It is important to consider this from a hockey's business model context.
+If I own a team and want to buy players, I wouldn't just make decisions of 
+purchase just based on the points they have made, reason being the team will have 
+a mix of offensive and defensive players, players for specialized positions like
+Wing or Defenseman. Points is a good starting point, but it doesn't explain 
+if the player has experience, which comes from games played which could be a 
+significant factor in salary. Another important this to consider is points is 
+only considering offensive players, how to assess salary for our defense players,
+in that case blocked shots can be used. If we further explore, points is single
+dimension in many ways, I would value a player more who scores goals more consistently
+and is efficient and they would command more salary so "sh_per" is an imp variable. 
+Lastly, dynamic performance level variables like takeaways and giveaways indicate
+current performance of player which might affect contract negotiations.**
+
+<div style="color:blue">
+12. What is the regression equation generated by your model? Make up a hypothetical
+input value and explain what it would predict as an outcome. To show the predicted
+outcome value, you can either use a function in R, or just explain what the predicted
+outcome would be, based on the regression equation and some simple math.
+</div>
+
+```{r}
+# Let's say a player has scored 60 points then its salary will be 
+x <- 60
+#Regression equation of the linear model created is 
+y <- 1185708 + 101280 * x
+y
+
+```
+<div style="color:blue">
+13. Using the accuracy() function from the forecast package, assess the accuracy 
+of your model against both the training set and the validation set. What is the purpose of making this comparison? Focus on RMSE and MAE here in particular
+</div>
+
+```{r}
+validation_data_model <- lm(validation_data$Salary ~ validation_data$P)
+summary(validation_data_model)
+library(forecast)
+accuracy(linear_model)
+accuracy(validation_data_model)
+mean(nhl_df$Salary)
+```
+**Answer: The purpose of comparing the performance of the model on training set
+v/s the validation set is to understand how accurate is the model predicting 
+on unseen data i.e validation data. This helps understand if the model has captured 
+sufficient variation in the dependent variable to explain its influence on outcome
+variable.This gives us direction for next steps which is based on this comparison,
+it might be further refining the model and testing again or proceed to cross-validation.
+In the comparison of performance, we know that the average salary is $3.75M and
+the model predicts within +- $2.15M error on training data while on validation
+data the RMSE slightly increases to +-2.21M which suggests possible overfitting
+in this case, but since the dataset is small we can say that the difference in 
+RMSE is acceptable. On the other hand, MAE values are also close between validation
+& training data which suggests that the model makes reasonably accurate predictions.**
+
+<div style="color:blue">
+14. How does your model’s RMSE compare to the standard deviation of hockey player
+salaries in the training set? What can such a comparison teach us about the model?
+</div>
+```{r}
+sd_salaries <- sd(train_data$Salary)
+sd_salaries
+```
+**Answer: The standard deviation of the Salary is $2.96M whereas the RMSE for the
+training set is $2.15M, a lower RMSE than SD of the outcome variable suggests that
+the model is doing well in explaining the variability/underlying pattern in the data.
+However, it is not significantly lower so there is room for improvement by adding 
+more predictors.**
+
+# Multiple Linear Regression
+
+<div style="color:blue">
+1. Build a correlation table in R that depicts the correlations among all of the numerical variables that you might use as predictors (use your training set to 
+build this). Are there any variable relationships that suggest that 
+multicollinearity could be an issue here? If so, for any strongly correlated 
+variable pair, remove a variable that should be taken out of the model. If you 
+removed any, how did you decide which ones to remove? If not,why did you keep the 
+ones that you have left?
+</div>
+
+```{r}
+correlation_matrix <- cor(train_data[, c("Gamesplayed","Goals","Assists","P","Shots",
+                                     "Sh_perc","PIM","Giveaways","Takeaways",
+                                     "Hits","HitsTaken","blockedshots","PlusMinus"   
+                                     )])
+round(correlation_matrix, 2)
+correlation_matrix
+```
+**Answer: For identifying multicollinearity, we can keep a threshold of cor > 0.7,
+any variable pair with correlation above this will be identify as highly correlated.
+Following are the highly correlated variables: Goals & Points(0.89), Assists & 
+Points (0.95), Goals & Assists (0.72), Shots & Goals, Shots & Assists are both
+above 0.8 and Takeaways & Assists are correlated (0.75). Since Points is product
+of goals and assists so we can just use Points, since we have already removed goals
+and assists we can keep Takeaways and Shots from these pairs.**
+
+<div style="color:blue">
+2. What are dummy variables? In a couple of sentences, describe what they are and
+explain their purpose. (Question #2 is a general question, and is not directly related to
+this particular dataset or problem).
+</div>
+
+**Answer: Dummy variables are binary (0/1) variables that are used to represent
+categorical data that have N categories in statistical models, because they 
+cannot be directly used in mathematical equations in their original "char" form. 
+There main purpose is to be used in regression models when they are supposed to 
+be used as predictors, and creating them allows the model to use interpret and 
+use them in explaining interrelationships with outcome variable.**
+
+<div style="color:blue">
+3.Using backward elimination, build a multiple regression model with the remaining 
+data in your training set, with the goal of predicting the variable Salary. 
+Start with all of the potential predictors that you have left (if you eliminated 
+any variables in a previous step in this section, don’t bring them back – 
+they’re gone!) [Be sure to use a function for this process, rather than a 
+manual approach]
+ a. Show a summary of your resulting multiple linear regression model
+</div>
+
+```{r}
+library(MASS)
+MLR <- lm(train_data$Salary ~ Gamesplayed + P + Shots+ Sh_perc + PIM + 
+            Giveaways +Takeaways + Hits + HitsTaken + blockedshots + PlusMinus,
+          data = train_data)
+best_MLR <- stepAIC(MLR, direction = "backward")
+summary(best_MLR)
+```
+<div style="color:blue">
+4. Model metrics
+ a. What is the total sum of squares for your model? (SST). This can be found by
+ summing all of the squared differences from the mean for your outcome variable.
+ b. What is the total sum of squares due to regression for your model? (SSR). This can
+ be found by summing all the squared differences between the fitted values and the
+ mean for your outcome variable. Do not use any other SSR definition, besides the one
+ listed here in the previous sentence.
+ c. What is your SSR / SST? Where can you also see this value in the summary of your
+ regression model?
+</div>
+
+```{r}
+SST <- sum((train_data$Salary - mean(train_data$Salary))^2)
+SST
+salary_pred_train <- predict(MLR, newdata = train_data)
+SSR <- sum((salary_pred_train - mean(train_data$Salary))^2)
+SSR
+R_squared <- SSR/SST
+R_squared
+```
+**Answer: SSR/SST is R_square which explains the variability in the Salary of 
+hockey players.**
+
+<div style="color:blue">
+5.  Getting from a t-value to a p-value. Choose one of the predictors from your 
+model (it could be a numeric input variable or a single level from a categorical 
+input). What is the t-value for that predictor? Using the visualize.t() function 
+from the visualize package,create a plot of the t-distribution that shows the 
+distribution for that t-value and the number of degrees of freedom in your model. 
+What percent of the curve is shaded? How does this relate to the p-value for
+that predictor?
+</div>
+
+```{r}
+library(visualize)
+t_value <- 4.602
+df <- 326
+
+visualize.t(stat = c(-t_value, t_value), df = df, section = "bounded")
+prob_shaded <- pt(t_value,df) - pt(-t_value,df)
+percent_shaded <- prob_shaded * 100
+percent_shaded
+```
+**Answer: The probability of area shaded is 99.9% and this represents the CI for
+two-tailed hypothesis test where p-value measures how extreme the t-value is and 
+this rejects null hypothesis and indicates that the blocked_shots predictor is 
+significant.**
+
+<div style="color:blue">
+6. What is your model’s F-statistic? What does the F-Statistic measure? Using R,
+demonstrate where the F-Statistic comes from (you can use the formula/process shown in
+the class slides with the Sacramento example).
+</div>
+
+```{r}
+k <- length(coefficients(best_MLR)) - 1
+n <- nrow(train_data)
+SSE <- SST - SSR
+
+F_statistic <- (SSR / k) / (SSE / (n - k - 1))
+F_statistic
+```
+**Answer: The F-statistic of the model from summary function is 43.61 and manually
+it comes close to that figure as seen above. The F-statistic collectively explains 
+a significant amount of variance in the dependent variable (Salary).**
+
+<div style="color:blue">
+7. Make up a fictional hockey player, and assign attributes to that player for each variable
+used in your model. What does your model predict that the player’s salary will be? To
+answer this, you can use a function in R or just explain it using the equation and some
+simple math.
+</div>
+
+```{r}
+fictional_player <- data.frame(Gamesplayed = 70, P = 55, 
+  Shots = 180, Giveaways = 35, Takeaways = 50, Hits = 60, HitsTaken = 40, 
+  blockedshots = 20,PlusMinus = 5)
+salary_prediction <- predict(best_MLR, newdata = fictional_player)
+salary_prediction
+```
+<div style="color:blue">
+8. Using the accuracy() function from the forecast package, assess the accuracy of your
+model against both the training set and the validation set. What do you notice about these
+results? Describe your findings in a couple of sentences. In this section, you should talk
+about the overfitting risk and also about the way your MLR model diered from your SLR
+model in terms of accuracy. Also, as you think about overall model accuracy, identify at
+least one important limitation of trying to predict income using these available variables.
+</div>
+
+```{r}
+validation_MLR_model <- predict(best_MLR, newdata = validation_data)
+library(forecast)
+validation_accuracy <- accuracy(validation_MLR_model, validation_data$Salary)
+training_MLR_model <- predict(best_MLR, newdata = train_data)
+training_accuracy <- accuracy(training_MLR_model, train_data$Salary)
+print("Validation Set Accuracy:")
+print(validation_accuracy)
+print("Training Set Accuracy:")
+print(training_accuracy)
+```
+**Answer: Both RMSE and MAE are almost similar for training and test data, which
+indicates that the MLR model is stable, this also indicates that the model is 
+generalizing well and is not overfitting which in SLR seem to be the case by a 
+small margin. MAE however is still high which states that model predicts salaries
+with a error of +- 1.5M, so maybe there is still room for improvement.If we compare
+the MLR model with SLR, we can see that RMSE has slightly improved but there is 
+considerable improvement in MAE from 1.67M in SLR to 1.5M in MLR which suggests that
+the MLR model is better at predicting the sale prices than SLR. In terms of 
+limitations of using these predictors, the most important I can think of is the 
+absence of external variables in the dataset like economic factors, contract
+negotiations as well as there are no physical attributes of players that have
+been considered as they impact performance and would be one of the determinants
+in the salary of the player. By physical attributes I meant physical fitness 
+quantified in some measure.**
